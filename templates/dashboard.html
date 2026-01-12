@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard</title>
+</head>
+<body>
+<h2>Welcome to Dashboard</h2>
+<a href="/add">Add Complaint</a> |
+<a href="/logout">Logout</a>
+<hr>
+{% for c in complaints %}
+<p><b>{{ c[1] }}</b><br>{{ c[2] }}</p>
+{% endfor %}
+</body>
+</html>
