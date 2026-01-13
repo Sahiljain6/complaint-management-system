@@ -1,27 +1,44 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Dashboard</title>
+    <title>Dashboard | Complaint System</title>
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-<h2>Dashboard</h2>
 
-<a href="/add">Add Complaint</a> |
-<a href="/logout">Logout</a>
+<div class="card" style="width: 700px;">
+    <h2>Your Complaints</h2>
 
-<hr>
+    <div style="margin-bottom:15px;">
+        <a class="btn" style="display:inline-block;width:auto;padding:10px 18px;" href="/add">
+            + Add Complaint
+        </a>
+        <a class="btn" style="display:inline-block;width:auto;padding:10px 18px;background:#e74c3c;" href="/logout">
+            Logout
+        </a>
+    </div>
 
-{% if complaints %}
-    {% for c in complaints %}
-        <p>
-            <b>{{ c["title"] }}</b><br>
-            {{ c["description"] }}
-        </p>
-        <hr>
-    {% endfor %}
-{% else %}
-    <p>No complaints submitted yet.</p>
-{% endif %}
+    <hr style="opacity:0.2;margin:15px 0;">
+
+    {% if complaints %}
+        {% for c in complaints %}
+            <div style="
+                background: rgba(255,255,255,0.15);
+                padding: 14px;
+                border-radius: 10px;
+                margin-bottom: 12px;
+                text-align:left;
+            ">
+                <strong>{{ c['title'] }}</strong>
+                <p style="font-size:14px;opacity:0.9;margin-top:5px;">
+                    {{ c['description'] }}
+                </p>
+            </div>
+        {% endfor %}
+    {% else %}
+        <p style="opacity:0.8;">No complaints submitted yet.</p>
+    {% endif %}
+</div>
 
 </body>
 </html>
