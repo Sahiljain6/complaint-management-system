@@ -4,11 +4,14 @@
     <title>Add Complaint</title>
 </head>
 <body>
-<h2>New Complaint</h2>
+<h2>Add New Complaint</h2>
+
 <form method="post">
-    <input name="title" placeholder="Title" required><br>
-    <textarea name="desc" placeholder="Complaint details"></textarea><br>
-    <button>Submit</button>
+    <input type="text" name="title" placeholder="Complaint Title" required><br>
+    <textarea name="description" placeholder="Complaint Description" required></textarea><br>
+    <button type="submit">Submit</button>
 </form>
+
+<p><a href="/dashboard">Back to Dashboard</a></p>
 </body>
 </html>
