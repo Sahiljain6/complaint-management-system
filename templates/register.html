@@ -1,18 +1,56 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Register</title>
+    <title>Register | Complaint System</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-<h2>User Registration</h2>
 
-<form method="post">
-    <input type="text" name="username" placeholder="Username" required><br>
-    <input type="password" name="password" placeholder="Password" required><br>
-    <button type="submit">Register</button>
-</form>
+<div class="card">
+    <h2>Create Account</h2>
 
-<p><a href="/">Back to Login</a></p>
+    <form method="post">
+
+        <div class="input-group">
+            <label>Name</label>
+            <input type="text" name="name" placeholder="Your Name" required>
+        </div>
+
+        <div class="input-group">
+            <label>Username</label>
+            <input type="text" name="username" placeholder="Username" required>
+        </div>
+
+        <div class="input-group">
+            <label>Email</label>
+            <input type="email" name="email" placeholder="Email address" required>
+        </div>
+
+        <div class="input-group">
+            <label>Password</label>
+            <input type="password" name="password" placeholder="Password" required>
+        </div>
+
+        <div class="input-group">
+            <label>Confirm Password</label>
+            <input type="password" name="confirm_password" placeholder="Confirm Password" required>
+        </div>
+
+        <div class="input-group">
+            <label>Role</label>
+            <select name="role">
+                <option>User</option>
+                <option>Admin</option>
+            </select>
+        </div>
+
+        <button class="btn" type="submit">Register</button>
+    </form>
+
+    <div class="footer-text">
+        Have an account? <a href="/">Login Now</a>
+    </div>
+</div>
+
 </body>
 </html>
