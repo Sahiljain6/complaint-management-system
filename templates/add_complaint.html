@@ -1,17 +1,33 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Add Complaint</title>
+    <title>Add Complaint | Complaint System</title>
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-<h2>Add New Complaint</h2>
 
-<form method="post">
-    <input type="text" name="title" placeholder="Complaint Title" required><br>
-    <textarea name="description" placeholder="Complaint Description" required></textarea><br>
-    <button type="submit">Submit</button>
-</form>
+<div class="card">
+    <h2>New Complaint</h2>
 
-<p><a href="/dashboard">Back to Dashboard</a></p>
+    <form method="post">
+
+        <div class="input-group">
+            <label>Complaint Title</label>
+            <input type="text" name="title" placeholder="Enter title" required>
+        </div>
+
+        <div class="input-group">
+            <label>Description</label>
+            <textarea name="description" rows="4" placeholder="Describe your issue" required></textarea>
+        </div>
+
+        <button class="btn" type="submit">Submit Complaint</button>
+    </form>
+
+    <div class="footer-text">
+        <a href="/dashboard">← Back to Dashboard</a>
+    </div>
+</div>
+
 </body>
 </html>
