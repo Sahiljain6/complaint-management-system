@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block content %}
+
+<div class="row mb-4">
+  <div class="col-md-4"><div class="card stat-card">Total {{ stats.total }}</div></div>
+  <div class="col-md-4"><div class="card stat-card pending">Pending {{ stats.pending }}</div></div>
+  <div class="col-md-4"><div class="card stat-card resolved">Resolved {{ stats.resolved }}</div></div>
+</div>
+
+<a href="/add" class="btn btn-primary mb-3">Add Complaint</a>
+<a href="/track" class="btn btn-secondary mb-3 ms-2">Track Complaint</a>
+
+{% for c in complaints %}
+<div class="card p-3 mb-3 shadow-sm">
+  <b>#{{ c.id }} - {{ c.title }}</b>
+  <p>{{ c.description }}</p>
+  <span class="badge {{ 'bg-warning' if c.status=='Pending' else 'bg-success' }}">{{ c.status }}</span>
+</div>
+{% endfor %}
+
+{% endblock %}
