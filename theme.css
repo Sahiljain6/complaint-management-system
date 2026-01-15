@@ -1,0 +1,10 @@
+body { background:#f4f6f9; font-family:Segoe UI; }
+.card { border-radius:14px; }
+.stat-card {
+  padding:20px;
+  text-align:center;
+  font-size:20px;
+  font-weight:600;
+}
+.pending { background:#fff3cd; }
+.resolved { background:#d1e7dd; }
