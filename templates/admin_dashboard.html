@@ -8,32 +8,25 @@
 <body>
 
 <div class="d-flex">
-    <div class="sidebar">
-        <h5>Admin Panel</h5>
-        <a href="/admin">Dashboard</a>
-        <a href="/logout">Logout</a>
-        <hr>
-        <button onclick="toggleMode()" class="btn btn-light btn-sm">Dark / Light</button>
-    </div>
-
-    <div class="container-fluid p-4">
-        <h3>All Complaints</h3>
-
-        {% for c in complaints %}
-        <div class="card p-3 mb-3 shadow-sm">
-            <h6>{{ c['title'] }}</h6>
-            <p>{{ c['description'] }}</p>
-            <span class="badge badge-resolved">Resolved</span>
-        </div>
-        {% endfor %}
-    </div>
+<div class="sidebar">
+    <a href="/admin">Admin Dashboard</a>
+    <a href="/logout">Logout</a>
 </div>
 
-<script>
-function toggleMode(){
-    document.body.classList.toggle("dark-mode");
-}
-</script>
-
+<div class="container p-4">
+    <h3>All Complaints</h3>
+    {% for c in complaints %}
+    <div class="card p-3 mb-2">
+        <b>{{ c['title'] }}</b>
+        <p>{{ c['description'] }}</p>
+        {% if c['status']=='Pending' %}
+        <a href="/resolve/{{ c['id'] }}" class="btn btn-success btn-sm">Resolve</a>
+        {% else %}
+        <span class="badge badge-resolved">Resolved</span>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+</div>
 </body>
 </html>
