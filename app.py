@@ -1,11 +1,15 @@
-from flask import Flask, render_template, request, redirect, session, url_for
+from flask import Flask, render_template, request, redirect, session, flash
 import sqlite3
+from datetime import datetime
+from werkzeug.security import generate_password_hash, check_password_hash
+from functools import wraps
 
 app = Flask(__name__)
-app.secret_key = "secret_key_123"
+app.secret_key = "scms_pro_secret"
 
 DB = "database.db"
 
+# ---------------- DB ----------------
 def get_db():
     conn = sqlite3.connect(DB)
     conn.row_factory = sqlite3.Row
@@ -13,101 +17,144 @@ def get_db():
 
 def init_db():
     db = get_db()
-    cur = db.cursor()
-
-    cur.execute("""
+    db.execute("""
     CREATE TABLE IF NOT EXISTS users(
         username TEXT PRIMARY KEY,
         password TEXT,
         role TEXT
-    )
-    """)
+    )""")
 
-    cur.execute("""
+    db.execute("""
     CREATE TABLE IF NOT EXISTS complaints(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user TEXT,
         title TEXT,
         description TEXT,
-        status TEXT DEFAULT 'Pending'
-    )
-    """)
+        status TEXT,
+        created_at TEXT,
+        updated_at TEXT
+    )""")
     db.commit()
 
+# ---------------- DECORATORS ----------------
+def login_required(f):
+    @wraps(f)
+    def wrap(*args, **kwargs):
+        if "user" not in session:
+            return redirect("/")
+        return f(*args, **kwargs)
+    return wrap
+
+def admin_required(f):
+    @wraps(f)
+    def wrap(*args, **kwargs):
+        if session.get("role") != "admin":
+            return redirect("/")
+        return f(*args, **kwargs)
+    return wrap
+
+# ---------------- AUTH ----------------
 @app.route("/", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        u = request.form["username"]
-        p = request.form["password"]
-
+        u, p = request.form["username"], request.form["password"]
         db = get_db()
-        cur = db.cursor()
-        cur.execute("SELECT * FROM users WHERE username=? AND password=?", (u, p))
-        user = cur.fetchone()
+        user = db.execute("SELECT * FROM users WHERE username=?", (u,)).fetchone()
 
-        if user:
+        if user and check_password_hash(user["password"], p):
             session["user"] = u
             session["role"] = user["role"]
-            if user["role"] == "admin":
-                return redirect("/admin")
-            return redirect("/dashboard")
-    return render_template("login.html")
+            return redirect("/admin" if user["role"] == "admin" else "/dashboard")
+        flash("Invalid Login", "danger")
+    return render_template("auth_login.html")
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
-        u = request.form["username"]
-        p = request.form["password"]
-        role = request.form["role"]
-
         db = get_db()
-        cur = db.cursor()
-        cur.execute("INSERT INTO users VALUES (?,?,?)", (u, p, role))
+        db.execute("INSERT INTO users VALUES (?,?,?)", (
+            request.form["username"],
+            generate_password_hash(request.form["password"]),
+            request.form["role"]
+        ))
         db.commit()
+        flash("Account Created", "success")
         return redirect("/")
-    return render_template("register.html")
+    return render_template("auth_register.html")
 
+# ---------------- USER ----------------
 @app.route("/dashboard")
+@login_required
 def dashboard():
-    if "user" not in session:
-        return redirect("/")
     db = get_db()
-    cur = db.cursor()
-    cur.execute("SELECT * FROM complaints WHERE user=?", (session["user"],))
-    complaints = cur.fetchall()
-    return render_template("dashboard.html", complaints=complaints)
+    data = db.execute(
+        "SELECT * FROM complaints WHERE user=? ORDER BY id DESC",
+        (session["user"],)
+    ).fetchall()
 
-@app.route("/admin")
-def admin_dashboard():
-    if session.get("role") != "admin":
-        return redirect("/")
-    db = get_db()
-    cur = db.cursor()
-    cur.execute("SELECT * FROM complaints")
-    complaints = cur.fetchall()
-    return render_template("admin_dashboard.html", complaints=complaints)
+    stats = {
+        "total": len(data),
+        "pending": len([d for d in data if d["status"] == "Pending"]),
+        "resolved": len([d for d in data if d["status"] == "Resolved"])
+    }
+    return render_template("user_dashboard.html", complaints=data, stats=stats)
 
 @app.route("/add", methods=["GET", "POST"])
+@login_required
 def add_complaint():
     if request.method == "POST":
-        t = request.form["title"]
-        d = request.form["description"]
-
         db = get_db()
-        cur = db.cursor()
-        cur.execute(
-            "INSERT INTO complaints(user,title,description,status) VALUES (?,?,?,?)",
-            (session["user"], t, d, "Pending")
-        )
+        db.execute("""
+        INSERT INTO complaints(user,title,description,status,created_at,updated_at)
+        VALUES (?,?,?,?,?,?)
+        """, (
+            session["user"],
+            request.form["title"],
+            request.form["description"],
+            "Pending",
+            datetime.now().strftime("%d-%m-%Y %H:%M"),
+            "-"
+        ))
         db.commit()
         return redirect("/dashboard")
     return render_template("add_complaint.html")
 
+@app.route("/track", methods=["GET", "POST"])
+@login_required
+def track():
+    complaint = None
+    if request.method == "POST":
+        cid = request.form["cid"]
+        db = get_db()
+        complaint = db.execute(
+            "SELECT * FROM complaints WHERE id=? AND user=?",
+            (cid, session["user"])
+        ).fetchone()
+    return render_template("track_complaint.html", complaint=complaint)
+
+# ---------------- ADMIN ----------------
+@app.route("/admin")
+@admin_required
+def admin():
+    db = get_db()
+    data = db.execute("SELECT * FROM complaints").fetchall()
+
+    stats = {
+        "total": len(data),
+        "pending": len([d for d in data if d["status"] == "Pending"]),
+        "resolved": len([d for d in data if d["status"] == "Resolved"])
+    }
+    return render_template("admin_dashboard.html", complaints=data, stats=stats)
+
 @app.route("/resolve/<int:id>")
+@admin_required
 def resolve(id):
     db = get_db()
-    cur = db.cursor()
-    cur.execute("UPDATE complaints SET status='Resolved' WHERE id=?", (id,))
+    db.execute("""
+    UPDATE complaints 
+    SET status='Resolved', updated_at=?
+    WHERE id=?
+    """, (datetime.now().strftime("%d-%m-%Y %H:%M"), id))
     db.commit()
     return redirect("/admin")
 
@@ -118,4 +165,4 @@ def logout():
 
 if __name__ == "__main__":
     init_db()
-    app.run(host="0.0.0.0", port=5000)
+    app.run(debug=True)
