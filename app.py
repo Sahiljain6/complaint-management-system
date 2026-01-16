@@ -5,15 +5,17 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 from pathlib import Path
 
+# ---------------- APP CONFIG ----------------
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "scms_render_secret_123"
 
 DB = "./database.db"
 
-# ---------- ENSURE DATABASE EXISTS ----------
+# Ensure database file exists
 if not os.path.exists(DB):
     Path(DB).touch()
 
+# ---------------- DATABASE ----------------
 def get_db():
     conn = sqlite3.connect(DB)
     conn.row_factory = sqlite3.Row
@@ -21,6 +23,16 @@ def get_db():
 
 def init_db():
     db = get_db()
+
+    # ---- FIX OLD USERS TABLE (2 columns issue) ----
+    try:
+        # Check if role column exists
+        db.execute("SELECT role FROM users LIMIT 1")
+    except sqlite3.OperationalError:
+        # Old schema detected → drop table
+        db.execute("DROP TABLE IF EXISTS users")
+
+    # Create users table (CORRECT SCHEMA)
     db.execute("""
     CREATE TABLE IF NOT EXISTS users(
         username TEXT PRIMARY KEY,
@@ -28,6 +40,8 @@ def init_db():
         role TEXT
     )
     """)
+
+    # Create complaints table
     db.execute("""
     CREATE TABLE IF NOT EXISTS complaints(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,26 +53,27 @@ def init_db():
         updated_at TEXT
     )
     """)
+
     db.commit()
 
-# ---------- DECORATORS ----------
+# ---------------- DECORATORS ----------------
 def login_required(f):
     @wraps(f)
-    def wrap(*args, **kwargs):
+    def wrapper(*args, **kwargs):
         if "user" not in session:
             return redirect("/")
         return f(*args, **kwargs)
-    return wrap
+    return wrapper
 
 def admin_required(f):
     @wraps(f)
-    def wrap(*args, **kwargs):
+    def wrapper(*args, **kwargs):
         if session.get("role") != "admin":
             return redirect("/")
         return f(*args, **kwargs)
-    return wrap
+    return wrapper
 
-# ---------- LOGIN ----------
+# ---------------- LOGIN ----------------
 @app.route("/", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -66,7 +81,10 @@ def login():
         p = request.form["password"]
 
         db = get_db()
-        user = db.execute("SELECT * FROM users WHERE username=?", (u,)).fetchone()
+        user = db.execute(
+            "SELECT * FROM users WHERE username=?",
+            (u,)
+        ).fetchone()
 
         if user and check_password_hash(user["password"], p):
             session["user"] = u
@@ -77,7 +95,7 @@ def login():
 
     return render_template("auth_login.html")
 
-# ---------- REGISTER ----------
+# ---------------- REGISTER ----------------
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
@@ -99,7 +117,7 @@ def register():
 
     return render_template("auth_register.html")
 
-# ---------- USER DASHBOARD ----------
+# ---------------- USER DASHBOARD ----------------
 @app.route("/dashboard")
 @login_required
 def dashboard():
@@ -115,17 +133,22 @@ def dashboard():
         "resolved": len([c for c in complaints if c["status"] == "Resolved"])
     }
 
-    return render_template("user_dashboard.html", complaints=complaints, stats=stats)
+    return render_template(
+        "user_dashboard.html",
+        complaints=complaints,
+        stats=stats
+    )
 
-# ---------- ADD COMPLAINT ----------
+# ---------------- ADD COMPLAINT ----------------
 @app.route("/add", methods=["GET", "POST"])
 @login_required
 def add_complaint():
     if request.method == "POST":
         db = get_db()
         db.execute("""
-        INSERT INTO complaints(user,title,description,status,created_at,updated_at)
-        VALUES (?,?,?,?,?,?)
+        INSERT INTO complaints(
+            user, title, description, status, created_at, updated_at
+        ) VALUES (?,?,?,?,?,?)
         """, (
             session["user"],
             request.form["title"],
@@ -139,7 +162,7 @@ def add_complaint():
 
     return render_template("add_complaint.html")
 
-# ---------- TRACK COMPLAINT ----------
+# ---------------- TRACK COMPLAINT ----------------
 @app.route("/track", methods=["GET", "POST"])
 @login_required
 def track():
@@ -151,14 +174,20 @@ def track():
             "SELECT * FROM complaints WHERE id=? AND user=?",
             (cid, session["user"])
         ).fetchone()
-    return render_template("track_complaint.html", complaint=complaint)
 
-# ---------- ADMIN ----------
+    return render_template(
+        "track_complaint.html",
+        complaint=complaint
+    )
+
+# ---------------- ADMIN DASHBOARD ----------------
 @app.route("/admin")
 @admin_required
 def admin():
     db = get_db()
-    complaints = db.execute("SELECT * FROM complaints ORDER BY id DESC").fetchall()
+    complaints = db.execute(
+        "SELECT * FROM complaints ORDER BY id DESC"
+    ).fetchall()
 
     stats = {
         "total": len(complaints),
@@ -166,8 +195,13 @@ def admin():
         "resolved": len([c for c in complaints if c["status"] == "Resolved"])
     }
 
-    return render_template("admin_dashboard.html", complaints=complaints, stats=stats)
+    return render_template(
+        "admin_dashboard.html",
+        complaints=complaints,
+        stats=stats
+    )
 
+# ---------------- RESOLVE COMPLAINT ----------------
 @app.route("/resolve/<int:id>")
 @admin_required
 def resolve(id):
@@ -176,15 +210,18 @@ def resolve(id):
     UPDATE complaints
     SET status='Resolved', updated_at=?
     WHERE id=?
-    """, (datetime.now().strftime("%d-%m-%Y %H:%M"), id))
+    """, (
+        datetime.now().strftime("%d-%m-%Y %H:%M"),
+        id
+    ))
     db.commit()
     return redirect("/admin")
 
-# ---------- LOGOUT ----------
+# ---------------- LOGOUT ----------------
 @app.route("/logout")
 def logout():
     session.clear()
     return redirect("/")
 
-# ---------- INIT DATABASE FOR GUNICORN ----------
+# ---------------- INIT DB FOR GUNICORN ----------------
 init_db()
