@@ -24,15 +24,12 @@ def get_db():
 def init_db():
     db = get_db()
 
-    # ---- FIX OLD USERS TABLE (2 columns issue) ----
+    # ===== FIX USERS TABLE =====
     try:
-        # Check if role column exists
         db.execute("SELECT role FROM users LIMIT 1")
     except sqlite3.OperationalError:
-        # Old schema detected → drop table
         db.execute("DROP TABLE IF EXISTS users")
 
-    # Create users table (CORRECT SCHEMA)
     db.execute("""
     CREATE TABLE IF NOT EXISTS users(
         username TEXT PRIMARY KEY,
@@ -41,7 +38,12 @@ def init_db():
     )
     """)
 
-    # Create complaints table
+    # ===== FIX COMPLAINTS TABLE =====
+    try:
+        db.execute("SELECT id FROM complaints LIMIT 1")
+    except sqlite3.OperationalError:
+        db.execute("DROP TABLE IF EXISTS complaints")
+
     db.execute("""
     CREATE TABLE IF NOT EXISTS complaints(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -223,5 +225,5 @@ def logout():
     session.clear()
     return redirect("/")
 
-# ---------------- INIT DB FOR GUNICORN ----------------
+# ---------------- INIT DB (FOR GUNICORN / RENDER) ----------------
 init_db()
