@@ -1,4 +1,6 @@
 flask
+flask_sqlalchemy
+flask_login
+psycopg2-binary
 gunicorn
 werkzeug
-mysql-connector-python
