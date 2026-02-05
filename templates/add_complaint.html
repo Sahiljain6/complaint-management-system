@@ -1,11 +1,14 @@
 {% extends 'base.html' %}
 {% block content %}
-<div class="card p-4 shadow">
-  <h4>Add Complaint</h4>
+
+<div class="card p-5 mx-auto" style="max-width:600px;">
+  <h4 class="mb-4">Add New Complaint</h4>
+
   <form method="post">
-    <input class="form-control mb-2" name="title" placeholder="Title" required>
-    <textarea class="form-control mb-3" name="description" placeholder="Description" required></textarea>
+    <input class="form-control mb-3" name="title" placeholder="Complaint Title" required>
+    <textarea class="form-control mb-4" name="description" rows="4" placeholder="Describe the issue..." required></textarea>
     <button class="btn btn-primary">Submit</button>
   </form>
 </div>
+
 {% endblock %}
