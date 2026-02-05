@@ -1,10 +1,97 @@
-body { background:#f4f6f9; font-family:Segoe UI; }
-.card { border-radius:14px; }
-.stat-card {
-  padding:20px;
-  text-align:center;
-  font-size:20px;
-  font-weight:600;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+  --primary: #6366f1;
+  --secondary: #22c55e;
+  --danger: #ef4444;
+  --bg: #f8fafc;
+  --card: #ffffff;
+  --text: #0f172a;
+  --muted: #64748b;
+  --shadow: 0 10px 30px rgba(0,0,0,0.08);
 }
-.pending { background:#fff3cd; }
-.resolved { background:#d1e7dd; }
+
+* {
+  font-family: 'Inter', sans-serif;
+}
+
+body {
+  background: linear-gradient(120deg, #eef2ff, #f8fafc);
+  color: var(--text);
+}
+
+/* Navbar */
+.navbar {
+  backdrop-filter: blur(10px);
+  box-shadow: var(--shadow);
+}
+
+/* Cards */
+.card {
+  background: var(--card);
+  border-radius: 16px;
+  border: none;
+  box-shadow: var(--shadow);
+}
+
+/* Buttons */
+.btn {
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.btn-primary {
+  background: var(--primary);
+  border: none;
+}
+
+.btn-primary:hover {
+  background: #4f46e5;
+}
+
+.btn-success {
+  background: var(--secondary);
+  border: none;
+}
+
+/* Badges */
+.badge {
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+}
+
+.bg-warning {
+  background: #fde68a !important;
+  color: #92400e;
+}
+
+.bg-success {
+  background: #bbf7d0 !important;
+  color: #065f46;
+}
+
+/* Inputs */
+.form-control {
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+
+/* Stats cards */
+.stat-card {
+  padding: 20px;
+  border-radius: 16px;
+  color: white;
+}
+
+.stat-total {
+  background: linear-gradient(135deg, #6366f1, #818cf8);
+}
+
+.stat-pending {
+  background: linear-gradient(135deg, #f59e0b, #fbbf24);
+}
+
+.stat-resolved {
+  background: linear-gradient(135deg, #22c55e, #4ade80);
+}
