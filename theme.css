@@ -1,14 +1,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-  --primary: #6366f1;
-  --secondary: #22c55e;
-  --danger: #ef4444;
-  --bg: #f8fafc;
+  --primary: #2563eb;
+  --secondary: #0f172a;
+  --accent: #22c55e;
+  --bg: #f1f5f9;
   --card: #ffffff;
   --text: #0f172a;
   --muted: #64748b;
-  --shadow: 0 10px 30px rgba(0,0,0,0.08);
+  --shadow: 0 20px 40px rgba(0,0,0,0.08);
 }
 
 * {
@@ -16,82 +16,90 @@
 }
 
 body {
-  background: linear-gradient(120deg, #eef2ff, #f8fafc);
+  background: var(--bg);
   color: var(--text);
 }
 
-/* Navbar */
+/* ---------- NAVBAR ---------- */
 .navbar {
-  backdrop-filter: blur(10px);
+  background: white;
   box-shadow: var(--shadow);
 }
 
-/* Cards */
-.card {
-  background: var(--card);
-  border-radius: 16px;
-  border: none;
-  box-shadow: var(--shadow);
+.navbar-brand {
+  font-weight: 700;
+  letter-spacing: 0.5px;
 }
 
-/* Buttons */
-.btn {
-  border-radius: 12px;
-  font-weight: 500;
-}
-
+/* ---------- BUTTONS ---------- */
 .btn-primary {
   background: var(--primary);
   border: none;
+  border-radius: 10px;
+  padding: 10px 18px;
 }
 
-.btn-primary:hover {
-  background: #4f46e5;
+.btn-outline {
+  border: 1px solid #cbd5f5;
+  color: var(--primary);
 }
 
-.btn-success {
-  background: var(--secondary);
+/* ---------- CARDS ---------- */
+.card {
+  border-radius: 18px;
   border: none;
+  box-shadow: var(--shadow);
 }
 
-/* Badges */
+/* ---------- INPUTS ---------- */
+.form-control {
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+/* ---------- AUTH LAYOUT ---------- */
+.auth-wrapper {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+}
+
+.auth-left {
+  background: linear-gradient(135deg, #2563eb, #1e40af);
+  color: white;
+  padding: 80px;
+}
+
+.auth-left h1 {
+  font-weight: 700;
+  font-size: 2.5rem;
+}
+
+.auth-left p {
+  opacity: 0.9;
+  margin-top: 20px;
+  max-width: 420px;
+}
+
+.auth-right {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* ---------- DASHBOARD ---------- */
+.stat-card {
+  padding: 24px;
+  border-radius: 18px;
+  color: white;
+}
+
+.stat-total { background: linear-gradient(135deg,#2563eb,#3b82f6); }
+.stat-pending { background: linear-gradient(135deg,#f59e0b,#fbbf24); }
+.stat-resolved { background: linear-gradient(135deg,#22c55e,#4ade80); }
+
 .badge {
   padding: 6px 12px;
   border-radius: 999px;
   font-size: 0.75rem;
-}
-
-.bg-warning {
-  background: #fde68a !important;
-  color: #92400e;
-}
-
-.bg-success {
-  background: #bbf7d0 !important;
-  color: #065f46;
-}
-
-/* Inputs */
-.form-control {
-  border-radius: 12px;
-  padding: 10px 14px;
-}
-
-/* Stats cards */
-.stat-card {
-  padding: 20px;
-  border-radius: 16px;
-  color: white;
-}
-
-.stat-total {
-  background: linear-gradient(135deg, #6366f1, #818cf8);
-}
-
-.stat-pending {
-  background: linear-gradient(135deg, #f59e0b, #fbbf24);
-}
-
-.stat-resolved {
-  background: linear-gradient(135deg, #22c55e, #4ade80);
 }
