@@ -1,62 +1,20 @@
 from flask import Flask, render_template, request, redirect, session, flash
-import sqlite3, os
-from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
-from pathlib import Path
+from datetime import datetime
+import mysql.connector
 
-# ---------------- APP CONFIG ----------------
 app = Flask(__name__)
-app.config["SECRET_KEY"] = "scms_render_secret_123"
+app.secret_key = "scms_xampp_secret"
 
-DB = "./database.db"
-
-# Ensure database file exists
-if not os.path.exists(DB):
-    Path(DB).touch()
-
-# ---------------- DATABASE ----------------
+# ---------------- DATABASE CONNECTION ----------------
 def get_db():
-    conn = sqlite3.connect(DB)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-def init_db():
-    db = get_db()
-
-    # ===== FIX USERS TABLE =====
-    try:
-        db.execute("SELECT role FROM users LIMIT 1")
-    except sqlite3.OperationalError:
-        db.execute("DROP TABLE IF EXISTS users")
-
-    db.execute("""
-    CREATE TABLE IF NOT EXISTS users(
-        username TEXT PRIMARY KEY,
-        password TEXT,
-        role TEXT
+    return mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password="",          # XAMPP default
+        database="scms_db"
     )
-    """)
-
-    # ===== FIX COMPLAINTS TABLE =====
-    try:
-        db.execute("SELECT id FROM complaints LIMIT 1")
-    except sqlite3.OperationalError:
-        db.execute("DROP TABLE IF EXISTS complaints")
-
-    db.execute("""
-    CREATE TABLE IF NOT EXISTS complaints(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user TEXT,
-        title TEXT,
-        description TEXT,
-        status TEXT,
-        created_at TEXT,
-        updated_at TEXT
-    )
-    """)
-
-    db.commit()
 
 # ---------------- DECORATORS ----------------
 def login_required(f):
@@ -79,17 +37,13 @@ def admin_required(f):
 @app.route("/", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        u = request.form["username"]
-        p = request.form["password"]
-
         db = get_db()
-        user = db.execute(
-            "SELECT * FROM users WHERE username=?",
-            (u,)
-        ).fetchone()
+        cur = db.cursor(dictionary=True)
+        cur.execute("SELECT * FROM users WHERE username=%s", (request.form["username"],))
+        user = cur.fetchone()
 
-        if user and check_password_hash(user["password"], p):
-            session["user"] = u
+        if user and check_password_hash(user["password"], request.form["password"]):
+            session["user"] = user["username"]
             session["role"] = user["role"]
             return redirect("/admin" if user["role"] == "admin" else "/dashboard")
 
@@ -103,8 +57,9 @@ def register():
     if request.method == "POST":
         try:
             db = get_db()
-            db.execute(
-                "INSERT INTO users VALUES (?,?,?)",
+            cur = db.cursor()
+            cur.execute(
+                "INSERT INTO users VALUES (%s,%s,%s)",
                 (
                     request.form["username"],
                     generate_password_hash(request.form["password"]),
@@ -114,7 +69,7 @@ def register():
             db.commit()
             flash("Account created successfully", "success")
             return redirect("/")
-        except sqlite3.IntegrityError:
+        except mysql.connector.IntegrityError:
             flash("Username already exists", "danger")
 
     return render_template("auth_register.html")
@@ -124,10 +79,9 @@ def register():
 @login_required
 def dashboard():
     db = get_db()
-    complaints = db.execute(
-        "SELECT * FROM complaints WHERE user=? ORDER BY id DESC",
-        (session["user"],)
-    ).fetchall()
+    cur = db.cursor(dictionary=True)
+    cur.execute("SELECT * FROM complaints WHERE user=%s ORDER BY id DESC", (session["user"],))
+    complaints = cur.fetchall()
 
     stats = {
         "total": len(complaints),
@@ -135,11 +89,7 @@ def dashboard():
         "resolved": len([c for c in complaints if c["status"] == "Resolved"])
     }
 
-    return render_template(
-        "user_dashboard.html",
-        complaints=complaints,
-        stats=stats
-    )
+    return render_template("user_dashboard.html", complaints=complaints, stats=stats)
 
 # ---------------- ADD COMPLAINT ----------------
 @app.route("/add", methods=["GET", "POST"])
@@ -147,18 +97,20 @@ def dashboard():
 def add_complaint():
     if request.method == "POST":
         db = get_db()
-        db.execute("""
-        INSERT INTO complaints(
-            user, title, description, status, created_at, updated_at
-        ) VALUES (?,?,?,?,?,?)
-        """, (
-            session["user"],
-            request.form["title"],
-            request.form["description"],
-            "Pending",
-            datetime.now().strftime("%d-%m-%Y %H:%M"),
-            "-"
-        ))
+        cur = db.cursor()
+        cur.execute(
+            """INSERT INTO complaints
+               (user,title,description,status,created_at,updated_at)
+               VALUES (%s,%s,%s,%s,%s,%s)""",
+            (
+                session["user"],
+                request.form["title"],
+                request.form["description"],
+                "Pending",
+                datetime.now().strftime("%d-%m-%Y %H:%M"),
+                "-"
+            )
+        )
         db.commit()
         return redirect("/dashboard")
 
@@ -170,26 +122,24 @@ def add_complaint():
 def track():
     complaint = None
     if request.method == "POST":
-        cid = request.form["cid"]
         db = get_db()
-        complaint = db.execute(
-            "SELECT * FROM complaints WHERE id=? AND user=?",
-            (cid, session["user"])
-        ).fetchone()
+        cur = db.cursor(dictionary=True)
+        cur.execute(
+            "SELECT * FROM complaints WHERE id=%s AND user=%s",
+            (request.form["cid"], session["user"])
+        )
+        complaint = cur.fetchone()
 
-    return render_template(
-        "track_complaint.html",
-        complaint=complaint
-    )
+    return render_template("track_complaint.html", complaint=complaint)
 
 # ---------------- ADMIN DASHBOARD ----------------
 @app.route("/admin")
 @admin_required
 def admin():
     db = get_db()
-    complaints = db.execute(
-        "SELECT * FROM complaints ORDER BY id DESC"
-    ).fetchall()
+    cur = db.cursor(dictionary=True)
+    cur.execute("SELECT * FROM complaints ORDER BY id DESC")
+    complaints = cur.fetchall()
 
     stats = {
         "total": len(complaints),
@@ -197,25 +147,18 @@ def admin():
         "resolved": len([c for c in complaints if c["status"] == "Resolved"])
     }
 
-    return render_template(
-        "admin_dashboard.html",
-        complaints=complaints,
-        stats=stats
-    )
+    return render_template("admin_dashboard.html", complaints=complaints, stats=stats)
 
 # ---------------- RESOLVE COMPLAINT ----------------
 @app.route("/resolve/<int:id>")
 @admin_required
 def resolve(id):
     db = get_db()
-    db.execute("""
-    UPDATE complaints
-    SET status='Resolved', updated_at=?
-    WHERE id=?
-    """, (
-        datetime.now().strftime("%d-%m-%Y %H:%M"),
-        id
-    ))
+    cur = db.cursor()
+    cur.execute(
+        "UPDATE complaints SET status=%s, updated_at=%s WHERE id=%s",
+        ("Resolved", datetime.now().strftime("%d-%m-%Y %H:%M"), id)
+    )
     db.commit()
     return redirect("/admin")
 
@@ -225,5 +168,5 @@ def logout():
     session.clear()
     return redirect("/")
 
-# ---------------- INIT DB (FOR GUNICORN / RENDER) ----------------
-init_db()
+if __name__ == "__main__":
+    app.run(debug=True)
