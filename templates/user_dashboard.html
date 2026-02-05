@@ -1,20 +1,43 @@
 {% extends 'base.html' %}
 {% block content %}
 
-<div class="row mb-4">
-  <div class="col-md-4"><div class="card stat-card">Total {{ stats.total }}</div></div>
-  <div class="col-md-4"><div class="card stat-card pending">Pending {{ stats.pending }}</div></div>
-  <div class="col-md-4"><div class="card stat-card resolved">Resolved {{ stats.resolved }}</div></div>
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="stat-card stat-total">
+      <h6>Total Complaints</h6>
+      <h3>{{ stats.total }}</h3>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="stat-card stat-pending">
+      <h6>Pending</h6>
+      <h3>{{ stats.pending }}</h3>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="stat-card stat-resolved">
+      <h6>Resolved</h6>
+      <h3>{{ stats.resolved }}</h3>
+    </div>
+  </div>
 </div>
 
-<a href="/add" class="btn btn-primary mb-3">Add Complaint</a>
-<a href="/track" class="btn btn-secondary mb-3 ms-2">Track Complaint</a>
+<div class="mb-3">
+  <a href="/add" class="btn btn-primary me-2">+ Add Complaint</a>
+  <a href="/track" class="btn btn-outline-secondary">Track Complaint</a>
+</div>
 
 {% for c in complaints %}
-<div class="card p-3 mb-3 shadow-sm">
-  <b>#{{ c.id }} - {{ c.title }}</b>
-  <p>{{ c.description }}</p>
-  <span class="badge {{ 'bg-warning' if c.status=='Pending' else 'bg-success' }}">{{ c.status }}</span>
+<div class="card p-4 mb-3">
+  <div class="d-flex justify-content-between align-items-center">
+    <div>
+      <h6 class="mb-1">#{{ c.id }} — {{ c.title }}</h6>
+      <p class="text-muted mb-2">{{ c.description }}</p>
+    </div>
+    <span class="badge {{ 'bg-warning' if c.status=='Pending' else 'bg-success' }}">
+      {{ c.status }}
+    </span>
+  </div>
 </div>
 {% endfor %}
 
