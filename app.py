@@ -7,19 +7,21 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 from datetime import datetime
 
-# -------------------------------------------------
+# =================================================
 # APP CONFIG
-# -------------------------------------------------
+# =================================================
 app = Flask(__name__)
 app.secret_key = "scms_secret_key"
 
-# -------------------------------------------------
+# =================================================
 # DATABASE CONFIG (RENDER POSTGRESQL)
-# -------------------------------------------------
+# =================================================
 DATABASE_URL = os.environ.get("DATABASE_URL")
-if not DATABASE_URL:
-    raise RuntimeError("DATABASE_URL not set")
 
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL is not set in environment variables")
+
+# Fix Render postgres:// issue
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
@@ -28,9 +30,9 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
 
-# -------------------------------------------------
+# =================================================
 # DATABASE MODELS
-# -------------------------------------------------
+# =================================================
 class User(db.Model):
     __tablename__ = "users"
     username = db.Column(db.String(50), primary_key=True)
@@ -49,16 +51,15 @@ class Complaint(db.Model):
     created_at = db.Column(db.String(50))
     updated_at = db.Column(db.String(50))
 
-# -------------------------------------------------
-# CREATE TABLES (ONLY ON FIRST REQUEST)
-# -------------------------------------------------
-@app.before_first_request
-def create_tables_once():
+# =================================================
+# CREATE TABLES (SAFE FOR FLASK 3)
+# =================================================
+with app.app_context():
     db.create_all()
 
-# -------------------------------------------------
+# =================================================
 # AUTH DECORATORS
-# -------------------------------------------------
+# =================================================
 def login_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
@@ -75,15 +76,15 @@ def admin_required(f):
         return f(*args, **kwargs)
     return wrapper
 
-# -------------------------------------------------
-# AUTO PRIORITY LOGIC
-# -------------------------------------------------
+# =================================================
+# AUTO PRIORITY LOGIC (SMART FEATURE)
+# =================================================
 def auto_set_priority(text):
     text = text.lower()
 
     high_keywords = [
-        "urgent", "not working", "emergency",
-        "broken", "failure", "immediately", "crash"
+        "urgent", "emergency", "not working",
+        "broken", "failure", "crash", "immediately"
     ]
     low_keywords = [
         "suggestion", "feedback", "improve", "enhancement"
@@ -99,29 +100,29 @@ def auto_set_priority(text):
 
     return "Medium"
 
-# -------------------------------------------------
-# EMAIL FUNCTION
-# -------------------------------------------------
+# =================================================
+# EMAIL FUNCTION (SAFE)
+# =================================================
 def send_email(subject, body):
-    if not os.environ.get("EMAIL_USER") or not os.environ.get("EMAIL_PASS"):
-        return  # Skip if email not configured
+    email_user = os.environ.get("EMAIL_USER")
+    email_pass = os.environ.get("EMAIL_PASS")
+
+    if not email_user or not email_pass:
+        return  # Skip silently if not configured
 
     msg = EmailMessage()
-    msg["From"] = os.environ.get("EMAIL_USER")
-    msg["To"] = os.environ.get("EMAIL_USER")
+    msg["From"] = email_user
+    msg["To"] = email_user
     msg["Subject"] = subject
     msg.set_content(body)
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
-        smtp.login(
-            os.environ.get("EMAIL_USER"),
-            os.environ.get("EMAIL_PASS")
-        )
+        smtp.login(email_user, email_pass)
         smtp.send_message(msg)
 
-# -------------------------------------------------
+# =================================================
 # LOGIN
-# -------------------------------------------------
+# =================================================
 @app.route("/", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -130,13 +131,12 @@ def login():
             session["user"] = user.username
             session["role"] = user.role
             return redirect("/admin" if user.role == "admin" else "/dashboard")
-
         flash("Invalid username or password", "danger")
     return render_template("auth_login.html")
 
-# -------------------------------------------------
+# =================================================
 # REGISTER
-# -------------------------------------------------
+# =================================================
 @app.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
@@ -154,9 +154,9 @@ def register():
             return redirect("/")
     return render_template("auth_register.html")
 
-# -------------------------------------------------
+# =================================================
 # USER DASHBOARD
-# -------------------------------------------------
+# =================================================
 @app.route("/dashboard")
 @login_required
 def dashboard():
@@ -176,9 +176,9 @@ def dashboard():
         stats=stats
     )
 
-# -------------------------------------------------
+# =================================================
 # ADD COMPLAINT
-# -------------------------------------------------
+# =================================================
 @app.route("/add", methods=["GET", "POST"])
 @login_required
 def add_complaint():
@@ -201,8 +201,8 @@ def add_complaint():
         db.session.commit()
 
         send_email(
-            subject="New Complaint Submitted",
-            body=f"""
+            "New Complaint Submitted",
+            f"""
 User: {session['user']}
 Category: {complaint.category}
 Priority: {complaint.priority}
@@ -215,9 +215,9 @@ Title: {complaint.title}
 
     return render_template("add_complaint.html")
 
-# -------------------------------------------------
+# =================================================
 # TRACK COMPLAINT
-# -------------------------------------------------
+# =================================================
 @app.route("/track", methods=["GET", "POST"])
 @login_required
 def track():
@@ -231,9 +231,9 @@ def track():
             flash("Complaint not found", "danger")
     return render_template("track_complaint.html", complaint=complaint)
 
-# -------------------------------------------------
+# =================================================
 # ADMIN DASHBOARD + ANALYTICS
-# -------------------------------------------------
+# =================================================
 @app.route("/admin")
 @admin_required
 def admin():
@@ -256,9 +256,9 @@ def admin():
         category_count=category_count
     )
 
-# -------------------------------------------------
+# =================================================
 # RESOLVE COMPLAINT
-# -------------------------------------------------
+# =================================================
 @app.route("/resolve/<int:id>")
 @admin_required
 def resolve(id):
@@ -269,8 +269,8 @@ def resolve(id):
         db.session.commit()
 
         send_email(
-            subject="Complaint Resolved",
-            body=f"""
+            "Complaint Resolved",
+            f"""
 Complaint ID: {complaint.id}
 Category: {complaint.category}
 Priority: {complaint.priority}
@@ -280,9 +280,9 @@ Status: Resolved
 
     return redirect("/admin")
 
-# -------------------------------------------------
+# =================================================
 # LOGOUT
-# -------------------------------------------------
+# =================================================
 @app.route("/logout")
 def logout():
     session.clear()
