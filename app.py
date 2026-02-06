@@ -466,7 +466,7 @@ def update_complaint(complaint_id):
 
 @app.route("/attachments/<filename>")
 @login_required
-def download_attachment(filename):
+def view_attachment(filename):
     if not filename:
         abort(404)
     complaint = Complaint.query.filter_by(attachment_filename=filename).first()
@@ -474,7 +474,17 @@ def download_attachment(filename):
         abort(404)
     if session.get("role") != "admin" and complaint.user != session.get("username"):
         abort(403)
-    return send_from_directory(app.config["UPLOAD_FOLDER"], filename, as_attachment=True)
+    return send_from_directory(app.config["UPLOAD_FOLDER"], filename, as_attachment=False)
+
+
+@app.errorhandler(403)
+def forbidden(_error):
+    return render_template("403.html"), 403
+
+
+@app.errorhandler(404)
+def not_found(_error):
+    return render_template("404.html"), 404
 
 # =================================================
 # LOGOUT
