@@ -15,6 +15,7 @@ from flask import (
     url_for,
 )
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import inspect, text
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
@@ -45,6 +46,9 @@ PRIORITY_OPTIONS = ["Low", "Medium", "High", "Critical"]
 
 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
+db_init_attempted = False
+db_init_error = None
+
 db = SQLAlchemy(app)
 
 # =================================================
@@ -52,33 +56,27 @@ db = SQLAlchemy(app)
 # =================================================
 class User(db.Model):
     __tablename__ = "users"
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    password_hash = db.Column(db.String(255), nullable=False)
+    username = db.Column(db.String(80), primary_key=True)
+    password = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False, default="user")
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-
-    complaints = db.relationship("Complaint", back_populates="user")
+    created_at = db.Column(db.String(50), nullable=True)
 
 class Complaint(db.Model):
     __tablename__ = "complaints"
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    user = db.Column(db.String(80), nullable=False)
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, nullable=False)
     category = db.Column(db.String(30), nullable=False)
     priority = db.Column(db.String(20), nullable=False)
     status = db.Column(db.String(20), default="Pending", nullable=False)
-    attachment_filename = db.Column(db.String(255), nullable=False)
-    assigned_to = db.Column(db.String(120))
-    admin_remarks = db.Column(db.Text)
-    resolution_date = db.Column(db.DateTime)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = db.Column(
-        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
-    )
+    attachment_filename = db.Column(db.String(255), nullable=True)
+    assigned_to = db.Column(db.String(120), nullable=True)
+    admin_remarks = db.Column(db.Text, nullable=True)
+    resolution_date = db.Column(db.String(20), nullable=True)
+    created_at = db.Column(db.String(50), nullable=True)
+    updated_at = db.Column(db.String(50), nullable=True)
 
-    user = db.relationship("User", back_populates="complaints")
     history = db.relationship(
         "ComplaintStatusHistory",
         back_populates="complaint",
@@ -102,32 +100,91 @@ class ComplaintStatusHistory(db.Model):
 # =================================================
 # CREATE TABLES (SAFE FOR FLASK 3)
 # =================================================
-with app.app_context():
-    db.create_all()
-    # Optionally seed an admin account from environment variables for production.
-    if os.environ.get("ADMIN_USERNAME") and os.environ.get("ADMIN_PASSWORD"):
-        existing_admin = User.query.filter_by(
-            username=os.environ["ADMIN_USERNAME"]
-        ).first()
-        if not existing_admin:
-            db.session.add(
-                User(
-                    username=os.environ["ADMIN_USERNAME"],
-                    password_hash=generate_password_hash(
-                        os.environ["ADMIN_PASSWORD"]
-                    ),
-                    role="admin",
+def initialize_database():
+    global db_init_attempted
+    global db_init_error
+    if db_init_attempted:
+        return
+    db_init_attempted = True
+    try:
+        with app.app_context():
+            db.create_all()
+            inspector = inspect(db.engine)
+
+            def ensure_columns(table_name, columns):
+                existing = {
+                    column["name"]
+                    for column in inspector.get_columns(table_name)
+                }
+                for column_name, column_type in columns.items():
+                    if column_name not in existing:
+                        db.session.execute(
+                            text(
+                                f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_type}"
+                            )
+                        )
+                        db.session.commit()
+
+            if inspector.has_table("users"):
+                ensure_columns(
+                    "users",
+                    {
+                        "role": "VARCHAR(20)",
+                        "created_at": "VARCHAR(50)",
+                    },
                 )
-            )
-            db.session.commit()
+
+            if inspector.has_table("complaints"):
+                ensure_columns(
+                    "complaints",
+                    {
+                        "attachment_filename": "VARCHAR(255)",
+                        "assigned_to": "VARCHAR(120)",
+                        "admin_remarks": "TEXT",
+                        "resolution_date": "VARCHAR(20)",
+                    },
+                )
+            # Optionally seed an admin account from environment variables for production.
+            if os.environ.get("ADMIN_USERNAME") and os.environ.get("ADMIN_PASSWORD"):
+                existing_admin = User.query.filter_by(
+                    username=os.environ["ADMIN_USERNAME"]
+                ).first()
+                if not existing_admin:
+                    db.session.add(
+                        User(
+                            username=os.environ["ADMIN_USERNAME"],
+                            password=generate_password_hash(
+                                os.environ["ADMIN_PASSWORD"]
+                            ),
+                            role="admin",
+                            created_at=datetime.now().strftime("%d-%m-%Y %H:%M"),
+                        )
+                    )
+                    db.session.commit()
+    except Exception as exc:
+        db_init_error = str(exc)
+        app.logger.exception("Database initialization failed: %s", exc)
 
 # =================================================
 # AUTH DECORATORS
 # =================================================
+@app.before_request
+def ensure_database():
+    initialize_database()
+    if db_init_error and request.endpoint not in {
+        "home",
+        "login",
+        "admin_login",
+        "register",
+        "static",
+    }:
+        flash("Database unavailable. Please try again later.", "danger")
+        return render_template("auth_login.html"), 503
+
 def login_required(f):
     @wraps(f)
     def wrapper(*args, **kwargs):
-        if "user_id" not in session:
+        if "username" not in session:
             return redirect(url_for("login"))
         return f(*args, **kwargs)
     return wrapper
@@ -154,7 +211,11 @@ def user_required(f):
 # =================================================
 @app.route("/", methods=["GET", "HEAD"])
 def home():
-    return redirect(url_for("login"))
+    if request.method == "HEAD":
+        return "", 200
+    if db_init_error:
+        flash("Database unavailable. Please try again later.", "danger")
+    return render_template("auth_login.html")
 
 # =================================================
 # AUTO PRIORITY LOGIC
@@ -183,16 +244,18 @@ def allowed_file(filename):
 # =================================================
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    if db_init_error:
+        flash("Database unavailable. Please try again later.", "danger")
+        return render_template("auth_login.html")
     if request.method == "POST":
         user = User.query.filter_by(username=request.form.get("username")).first()
         if (
             user
             and user.role == "user"
             and check_password_hash(
-                user.password_hash, request.form.get("password", "")
+                user.password, request.form.get("password", "")
             )
         ):
-            session["user_id"] = user.id
             session["username"] = user.username
             session["role"] = user.role
             return redirect(url_for("dashboard"))
@@ -203,14 +266,16 @@ def login():
 
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
+    if db_init_error:
+        flash("Database unavailable. Please try again later.", "danger")
+        return render_template("auth_login.html", admin_login=True)
     if request.method == "POST":
         admin_user = User.query.filter_by(
             username=request.form.get("username"), role="admin"
         ).first()
         if admin_user and check_password_hash(
-            admin_user.password_hash, request.form.get("password", "")
+            admin_user.password, request.form.get("password", "")
         ):
-            session["user_id"] = admin_user.id
             session["username"] = admin_user.username
             session["role"] = admin_user.role
             return redirect(url_for("admin_dashboard"))
@@ -223,6 +288,9 @@ def admin_login():
 # =================================================
 @app.route("/register", methods=["GET", "POST"])
 def register():
+    if db_init_error:
+        flash("Database unavailable. Please try again later.", "danger")
+        return render_template("auth_register.html")
     if request.method == "POST":
         username = request.form.get("username")
         password = request.form.get("password")
@@ -232,8 +300,9 @@ def register():
         else:
             user = User(
                 username=username,
-                password_hash=generate_password_hash(password),
+                password=generate_password_hash(password),
                 role="user",
+                created_at=datetime.now().strftime("%d-%m-%Y %H:%M"),
             )
             db.session.add(user)
             db.session.commit()
@@ -250,8 +319,8 @@ def register():
 @user_required
 def dashboard():
     complaints = Complaint.query.filter_by(
-        user_id=session["user_id"]
-    ).order_by(Complaint.created_at.desc()).all()
+        user=session["username"]
+    ).order_by(Complaint.id.desc()).all()
 
     stats = {
         "total": len(complaints),
@@ -282,29 +351,28 @@ def add_complaint():
             flash("Title and description are required", "danger")
             return redirect(url_for("add_complaint"))
 
-        if not attachment or attachment.filename == "":
-            flash("Attachment is required (image or PDF)", "danger")
-            return redirect(url_for("add_complaint"))
+        unique_name = None
+        if attachment and attachment.filename:
+            if not allowed_file(attachment.filename):
+                flash("Only image or PDF files are allowed", "danger")
+                return redirect(url_for("add_complaint"))
 
-        if not allowed_file(attachment.filename):
-            flash("Only image or PDF files are allowed", "danger")
-            return redirect(url_for("add_complaint"))
-
-        os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
-        safe_name = secure_filename(attachment.filename)
-        unique_name = f"{uuid.uuid4().hex}_{safe_name}"
-        attachment.save(os.path.join(app.config["UPLOAD_FOLDER"], unique_name))
+            safe_name = secure_filename(attachment.filename)
+            unique_name = f"{uuid.uuid4().hex}_{safe_name}"
+            attachment.save(os.path.join(app.config["UPLOAD_FOLDER"], unique_name))
 
         priority = auto_set_priority(title + " " + description)
 
         complaint = Complaint(
-            user_id=session["user_id"],
+            user=session["username"],
             title=title,
             description=description,
             category=category,
             priority=priority,
             status="Pending",
             attachment_filename=unique_name,
+            created_at=datetime.now().strftime("%d-%m-%Y %H:%M"),
+            updated_at="-",
         )
 
         db.session.add(complaint)
@@ -374,10 +442,7 @@ def update_complaint(complaint_id):
         flash("Invalid status selected", "danger")
         return redirect(url_for("admin_dashboard"))
 
-    if resolution_date:
-        complaint.resolution_date = datetime.strptime(resolution_date, "%Y-%m-%d")
-    else:
-        complaint.resolution_date = None
+    complaint.resolution_date = resolution_date or None
 
     complaint.assigned_to = assigned_to or None
     complaint.admin_remarks = admin_remarks or None
@@ -402,10 +467,12 @@ def update_complaint(complaint_id):
 @app.route("/attachments/<filename>")
 @login_required
 def download_attachment(filename):
+    if not filename:
+        abort(404)
     complaint = Complaint.query.filter_by(attachment_filename=filename).first()
     if not complaint:
         abort(404)
-    if session.get("role") != "admin" and complaint.user_id != session.get("user_id"):
+    if session.get("role") != "admin" and complaint.user != session.get("username"):
         abort(403)
     return send_from_directory(app.config["UPLOAD_FOLDER"], filename, as_attachment=True)
 

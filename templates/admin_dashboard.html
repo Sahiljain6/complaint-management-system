@@ -39,11 +39,15 @@
       <tr>
         <td style="min-width: 220px;">
           <div class="fw-semibold">#{{ c.id }} {{ c.title }}</div>
-          <div class="text-muted small">Submitted by {{ c.user.username }}</div>
-          <div class="text-muted small">{{ c.created_at.strftime("%d %b %Y %H:%M") }}</div>
-          <div class="mt-2">
-            <a href="{{ url_for('download_attachment', filename=c.attachment_filename) }}" class="btn btn-sm btn-outline-primary">View Attachment</a>
-          </div>
+          <div class="text-muted small">Submitted by {{ c.user }}</div>
+          <div class="text-muted small">{{ c.created_at or "-" }}</div>
+          {% if c.attachment_filename %}
+            <div class="mt-2">
+              <a href="{{ url_for('download_attachment', filename=c.attachment_filename) }}" class="btn btn-sm btn-outline-primary">View Attachment</a>
+            </div>
+          {% else %}
+            <div class="mt-2 text-muted small">No attachment</div>
+          {% endif %}
         </td>
         <td>{{ c.category }}</td>
         <td><span class="badge bg-secondary">{{ c.priority }}</span></td>
@@ -51,7 +55,7 @@
           <div class="small text-muted">Assigned to</div>
           <div class="fw-semibold">{{ c.assigned_to or "Unassigned" }}</div>
           {% if c.resolution_date %}
-            <div class="small text-muted">Resolution date: {{ c.resolution_date.strftime("%d %b %Y") }}</div>
+            <div class="small text-muted">Resolution date: {{ c.resolution_date }}</div>
           {% endif %}
         </td>
         <td>
@@ -86,7 +90,7 @@
             </div>
             <div class="mb-2">
               <label class="form-label small">Resolution date</label>
-              <input class="form-control form-control-sm" type="date" name="resolution_date" value="{{ c.resolution_date.strftime('%Y-%m-%d') if c.resolution_date }}">
+              <input class="form-control form-control-sm" type="date" name="resolution_date" value="{{ c.resolution_date or '' }}">
             </div>
             <div class="mb-2">
               <label class="form-label small">Admin remarks</label>

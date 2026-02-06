@@ -56,9 +56,13 @@
         <td><span class="badge bg-secondary">{{ c.priority }}</span></td>
         <td><span class="badge bg-info">{{ c.status }}</span></td>
         <td>
-          <a href="{{ url_for('download_attachment', filename=c.attachment_filename) }}" class="btn btn-sm btn-outline-primary">
-            Download
-          </a>
+          {% if c.attachment_filename %}
+            <a href="{{ url_for('download_attachment', filename=c.attachment_filename) }}" class="btn btn-sm btn-outline-primary">
+              Download
+            </a>
+          {% else %}
+            <span class="text-muted small">None</span>
+          {% endif %}
         </td>
         <td>
           <ul class="list-unstyled mb-0 small">
