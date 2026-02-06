@@ -404,15 +404,24 @@ def add_redirect():
 @app.route("/admin")
 @admin_required
 def admin_dashboard():
-    complaints = Complaint.query.order_by(Complaint.created_at.desc()).all()
+    status_filter = request.args.get("status")
+    priority_filter = request.args.get("priority")
+
+    complaints_query = Complaint.query
+    if status_filter:
+        complaints_query = complaints_query.filter(Complaint.status == status_filter)
+    if priority_filter:
+        complaints_query = complaints_query.filter(Complaint.priority == priority_filter)
+
+    complaints = complaints_query.order_by(Complaint.created_at.desc()).all()
 
     status_count = {status: 0 for status in STATUS_OPTIONS}
     priority_count = {priority: 0 for priority in PRIORITY_OPTIONS}
     category_count = {}
 
     for complaint in complaints:
-        status_count[complaint.status] += 1
-        priority_count[complaint.priority] += 1
+        status_count[complaint.status] = status_count.get(complaint.status, 0) + 1
+        priority_count[complaint.priority] = priority_count.get(complaint.priority, 0) + 1
         category_count[complaint.category] = category_count.get(
             complaint.category, 0
         ) + 1
@@ -424,6 +433,9 @@ def admin_dashboard():
         priority_count=priority_count,
         category_count=category_count,
         status_options=STATUS_OPTIONS,
+        priority_options=PRIORITY_OPTIONS,
+        status_filter=status_filter,
+        priority_filter=priority_filter,
     )
 
 # =================================================
@@ -434,6 +446,7 @@ def admin_dashboard():
 def update_complaint(complaint_id):
     complaint = Complaint.query.get_or_404(complaint_id)
     new_status = request.form.get("status", complaint.status)
+    new_priority = request.form.get("priority", complaint.priority)
     assigned_to = request.form.get("assigned_to", "").strip()
     admin_remarks = request.form.get("admin_remarks", "").strip()
     resolution_date = request.form.get("resolution_date", "").strip()
@@ -442,10 +455,15 @@ def update_complaint(complaint_id):
         flash("Invalid status selected", "danger")
         return redirect(url_for("admin_dashboard"))
 
+    if new_priority not in PRIORITY_OPTIONS:
+        flash("Invalid priority selected", "danger")
+        return redirect(url_for("admin_dashboard"))
+
     complaint.resolution_date = resolution_date or None
 
     complaint.assigned_to = assigned_to or None
     complaint.admin_remarks = admin_remarks or None
+    complaint.priority = new_priority
 
     if new_status != complaint.status:
         db.session.add(
