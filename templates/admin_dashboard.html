@@ -1,24 +1,112 @@
 {% extends 'base.html' %}
 {% block content %}
 
-<h4 class="mb-4">Admin Dashboard</h4>
-
-{% for c in complaints %}
-<div class="card p-4 mb-3">
-  <div class="d-flex justify-content-between align-items-center">
-    <div>
-      <h6>#{{ c.id }} | {{ c.user }}</h6>
-      <p class="mb-1 fw-medium">{{ c.title }}</p>
-      <p class="text-muted">{{ c.description }}</p>
-    </div>
-
-    {% if c.status == 'Pending' %}
-      <a href="/resolve/{{ c.id }}" class="btn btn-success btn-sm">Resolve</a>
-    {% else %}
-      <span class="badge bg-success">Resolved</span>
-    {% endif %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h4 class="mb-1">Admin Dashboard</h4>
+    <p class="text-muted mb-0">Monitor and manage all complaints.</p>
   </div>
 </div>
-{% endfor %}
+
+<div class="row g-3 mb-4">
+  {% for status, count in status_count.items() %}
+  <div class="col-md-3">
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <h6 class="text-muted">{{ status }}</h6>
+        <h3 class="mb-0">{{ count }}</h3>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="table-responsive bg-white shadow-sm rounded-3">
+  <table class="table align-middle mb-0">
+    <thead class="table-light">
+      <tr>
+        <th>Complaint</th>
+        <th>Category</th>
+        <th>Priority</th>
+        <th>Assignment</th>
+        <th>Status</th>
+        <th>History</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for c in complaints %}
+      <tr>
+        <td style="min-width: 220px;">
+          <div class="fw-semibold">#{{ c.id }} {{ c.title }}</div>
+          <div class="text-muted small">Submitted by {{ c.user }}</div>
+          <div class="text-muted small">{{ c.created_at or "-" }}</div>
+          {% if c.attachment_filename %}
+            <div class="mt-2">
+              <a href="{{ url_for('download_attachment', filename=c.attachment_filename) }}" class="btn btn-sm btn-outline-primary">View Attachment</a>
+            </div>
+          {% else %}
+            <div class="mt-2 text-muted small">No attachment</div>
+          {% endif %}
+        </td>
+        <td>{{ c.category }}</td>
+        <td><span class="badge bg-secondary">{{ c.priority }}</span></td>
+        <td>
+          <div class="small text-muted">Assigned to</div>
+          <div class="fw-semibold">{{ c.assigned_to or "Unassigned" }}</div>
+          {% if c.resolution_date %}
+            <div class="small text-muted">Resolution date: {{ c.resolution_date }}</div>
+          {% endif %}
+        </td>
+        <td>
+          <span class="badge bg-info">{{ c.status }}</span>
+          {% if c.admin_remarks %}
+            <div class="small text-muted mt-2">Remarks: {{ c.admin_remarks }}</div>
+          {% endif %}
+        </td>
+        <td>
+          <ul class="list-unstyled mb-0 small">
+            {% for history in c.history %}
+              <li>
+                <span class="fw-semibold">{{ history.old_status }} → {{ history.new_status }}</span>
+                <span class="text-muted">({{ history.changed_at.strftime("%d %b %Y %H:%M") }})</span>
+              </li>
+            {% endfor %}
+          </ul>
+        </td>
+        <td style="min-width: 220px;">
+          <form method="post" action="{{ url_for('update_complaint', complaint_id=c.id) }}">
+            <div class="mb-2">
+              <label class="form-label small">Status</label>
+              <select class="form-select form-select-sm" name="status">
+                {% for option in status_options %}
+                  <option value="{{ option }}" {% if option == c.status %}selected{% endif %}>{{ option }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="mb-2">
+              <label class="form-label small">Assign to</label>
+              <input class="form-control form-control-sm" name="assigned_to" value="{{ c.assigned_to or '' }}" placeholder="Staff member">
+            </div>
+            <div class="mb-2">
+              <label class="form-label small">Resolution date</label>
+              <input class="form-control form-control-sm" type="date" name="resolution_date" value="{{ c.resolution_date or '' }}">
+            </div>
+            <div class="mb-2">
+              <label class="form-label small">Admin remarks</label>
+              <textarea class="form-control form-control-sm" name="admin_remarks" rows="2">{{ c.admin_remarks or '' }}</textarea>
+            </div>
+            <button class="btn btn-primary btn-sm w-100">Update</button>
+          </form>
+        </td>
+      </tr>
+    {% else %}
+      <tr>
+        <td colspan="7" class="text-center text-muted py-4">No complaints submitted yet.</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
 
 {% endblock %}
