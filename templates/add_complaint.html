@@ -1,35 +1,71 @@
 {% extends 'base.html' %}
 {% block content %}
 
-<div class="card p-4 shadow-sm border-0 mx-auto" style="max-width:720px;">
-  <h4 class="mb-2">Submit a New Complaint</h4>
-  <p class="text-muted mb-4">Upload a supporting screenshot or PDF to help us resolve it faster.</p>
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+    <div class="card p-4 p-lg-5">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+        <div>
+          <h4 class="mb-1">Submit a New Complaint</h4>
+          <p class="text-muted mb-0">Provide detailed information so we can resolve it quickly.</p>
+        </div>
+        <div class="d-flex gap-2">
+          <span class="step-pill active">1. Details</span>
+          <span class="step-pill">2. Category</span>
+          <span class="step-pill">3. Attachment</span>
+        </div>
+      </div>
 
-  <form method="post" enctype="multipart/form-data">
-    <div class="mb-3">
-      <label class="form-label">Title</label>
-      <input class="form-control" name="title" placeholder="Complaint Title" required>
+      <form method="post" enctype="multipart/form-data" id="complaintForm">
+        <div class="mb-3">
+          <label class="form-label">Title</label>
+          <input class="form-control" name="title" placeholder="Short complaint summary" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Category</label>
+          <select class="form-select" name="category" required>
+            <option value="" selected disabled>Select category</option>
+            <option value="Technical">Technical</option>
+            <option value="Academic">Academic</option>
+            <option value="Hostel">Hostel</option>
+            <option value="Admin">Admin</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Priority</label>
+          <input class="form-control" value="Auto-assigned after submission" readonly>
+        </div>
+        <div class="mb-4">
+          <label class="form-label">Description</label>
+          <textarea class="form-control" name="description" rows="5" placeholder="Describe the issue in detail..." required></textarea>
+        </div>
+        <div class="upload-card mb-4">
+          <div class="text-primary mb-2">
+            <i class="bi bi-paperclip fs-3"></i>
+          </div>
+          <h6 class="mb-1">Upload supporting file</h6>
+          <p class="text-muted small mb-3">PNG, JPG, GIF, or PDF (max 10MB)</p>
+          <input class="form-control" type="file" name="attachment" accept=".png,.jpg,.jpeg,.gif,.pdf" required>
+        </div>
+        <div class="d-flex justify-content-end">
+          <button class="btn btn-primary" id="submitButton" type="submit">
+            <span class="submit-label">Submit Complaint</span>
+            <span class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true"></span>
+          </button>
+        </div>
+      </form>
     </div>
-    <div class="mb-3">
-      <label class="form-label">Category</label>
-      <select class="form-select" name="category" required>
-        <option value="Technical">Technical</option>
-        <option value="Academic">Academic</option>
-        <option value="Hostel">Hostel</option>
-        <option value="Admin">Admin</option>
-        <option value="Other">Other</option>
-      </select>
-    </div>
-    <div class="mb-3">
-      <label class="form-label">Description</label>
-      <textarea class="form-control" name="description" rows="5" placeholder="Describe the issue..." required></textarea>
-    </div>
-    <div class="mb-4">
-      <label class="form-label">Attachment (Image or PDF)</label>
-      <input class="form-control" type="file" name="attachment" accept=".png,.jpg,.jpeg,.gif,.pdf" required>
-    </div>
-    <button class="btn btn-primary">Submit Complaint</button>
-  </form>
+  </div>
 </div>
 
+<script>
+  const complaintForm = document.getElementById('complaintForm');
+  const submitButton = document.getElementById('submitButton');
+  complaintForm.addEventListener('submit', () => {
+    submitButton.setAttribute('disabled', 'disabled');
+    submitButton.querySelector('.submit-label').textContent = 'Submitting...';
+    submitButton.querySelector('.spinner-border').classList.remove('d-none');
+  });
+</script>
 {% endblock %}
