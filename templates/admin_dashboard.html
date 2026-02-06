@@ -43,7 +43,7 @@
           <div class="text-muted small">{{ c.created_at or "-" }}</div>
           {% if c.attachment_filename %}
             <div class="mt-2">
-              <a href="{{ url_for('download_attachment', filename=c.attachment_filename) }}" class="btn btn-sm btn-outline-primary">View Attachment</a>
+              <a href="{{ url_for('view_attachment', filename=c.attachment_filename) }}" class="btn btn-sm btn-outline-primary">View Attachment</a>
             </div>
           {% else %}
             <div class="mt-2 text-muted small">No attachment</div>
