@@ -1,28 +1,47 @@
 {% extends "base.html" %}
 
+{% block body_class %}auth-page{% endblock %}
+
 {% block content %}
-<div class="row justify-content-center">
-  <div class="col-lg-4 col-md-6">
-    <div class="card shadow-sm border-0">
-      <div class="card-body p-4">
-        <h4 class="text-center mb-1">
-          {{ "Admin Login" if admin_login else "User Login" }}
-        </h4>
-        <p class="text-center text-muted mb-4">
-          Access the complaint management system securely.
-        </p>
-        <form method="post">
-          <input class="form-control mb-3" name="username" placeholder="Username" required>
-          <input class="form-control mb-4" type="password" name="password" placeholder="Password" required>
-          <button class="btn btn-primary w-100">
-            {{ "Sign In as Admin" if admin_login else "Login" }}
-          </button>
-        </form>
-        {% if not admin_login %}
-          <div class="text-center mt-3">
-            <a href="{{ url_for('register') }}">Create account</a>
-          </div>
-        {% endif %}
+<div class="auth-shell">
+  <div class="card auth-card">
+    <div class="card-body p-4 p-md-5">
+      <div class="auth-logo">
+        <i class="bi bi-shield-lock"></i>
+      </div>
+      <div class="text-center mb-4">
+        <h3 class="mb-1">{{ "Admin Login" if admin_login else "User Login" }}</h3>
+        <p class="text-muted mb-0">Secure access to your complaint workspace.</p>
+      </div>
+      <div class="d-flex gap-2 auth-toggle mb-4">
+        <a href="{{ url_for('login') }}" class="btn {{ 'btn-primary' if not admin_login else 'btn-outline-primary' }}">
+          <i class="bi bi-person"></i> User
+        </a>
+        <a href="{{ url_for('admin_login') }}" class="btn {{ 'btn-primary' if admin_login else 'btn-outline-primary' }}">
+          <i class="bi bi-person-badge"></i> Admin
+        </a>
+      </div>
+      <form method="post">
+        <div class="mb-3">
+          <label class="form-label">Username</label>
+          <input class="form-control" name="username" placeholder="Enter your username" required>
+        </div>
+        <div class="mb-4">
+          <label class="form-label">Password</label>
+          <input class="form-control" type="password" name="password" placeholder="Enter your password" required>
+        </div>
+        <button class="btn btn-primary w-100">
+          {{ "Sign In as Admin" if admin_login else "Sign In" }}
+        </button>
+      </form>
+      {% if not admin_login %}
+        <div class="text-center mt-3">
+          <span class="text-muted">New here?</span>
+          <a href="{{ url_for('register') }}" class="fw-semibold">Create account</a>
+        </div>
+      {% endif %}
+      <div class="text-center mt-4 text-muted small">
+        Protected by enterprise-grade security &amp; audit trails.
       </div>
     </div>
   </div>

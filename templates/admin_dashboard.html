@@ -1,112 +1,255 @@
 {% extends 'base.html' %}
 {% block content %}
 
-<div class="d-flex align-items-center justify-content-between mb-4">
-  <div>
-    <h4 class="mb-1">Admin Dashboard</h4>
-    <p class="text-muted mb-0">Monitor and manage all complaints.</p>
-  </div>
-</div>
+{% set ns = namespace(critical=0, sla=0) %}
+{% for c in complaints %}
+  {% if c.priority == 'Critical' %}
+    {% set ns.critical = ns.critical + 1 %}
+  {% endif %}
+  {% if c.sla_breached %}
+    {% set ns.sla = ns.sla + 1 %}
+  {% endif %}
+{% endfor %}
 
-<div class="row g-3 mb-4">
-  {% for status, count in status_count.items() %}
-  <div class="col-md-3">
-    <div class="card shadow-sm border-0">
-      <div class="card-body">
-        <h6 class="text-muted">{{ status }}</h6>
-        <h3 class="mb-0">{{ count }}</h3>
+<div class="admin-shell">
+  <aside class="admin-sidebar">
+    <div class="mb-4">
+      <h5 class="mb-1">Admin Console</h5>
+      <p class="text-muted small mb-0">Operations &amp; oversight</p>
+    </div>
+    <nav class="nav flex-column">
+      <a class="nav-link active" href="{{ url_for('admin_dashboard') }}">
+        <i class="bi bi-speedometer2 me-2"></i> Dashboard
+      </a>
+      <a class="nav-link" href="{{ url_for('admin_dashboard') }}#complaints">
+        <i class="bi bi-inbox me-2"></i> Complaints
+      </a>
+      <a class="nav-link" href="{{ url_for('logout') }}">
+        <i class="bi bi-box-arrow-right me-2"></i> Logout
+      </a>
+    </nav>
+  </aside>
+
+  <section class="admin-content">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+      <div>
+        <h3 class="section-title mb-1">Admin Dashboard</h3>
+        <p class="text-muted mb-0">Monitor workload, SLA performance, and resolution progress.</p>
+      </div>
+      <div class="text-muted small">Updated {{ (complaints|length) }} records</div>
+    </div>
+
+    <div class="row g-3 mb-4">
+      <div class="col-md-4">
+        <div class="analytics-card h-100">
+          <div class="d-flex align-items-center justify-content-between">
+            <div>
+              <p class="text-muted mb-1">Total Complaints</p>
+              <div class="metric">{{ complaints|length }}</div>
+            </div>
+            <div class="stat-icon">
+              <i class="bi bi-clipboard-data"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="analytics-card h-100">
+          <div class="d-flex align-items-center justify-content-between">
+            <div>
+              <p class="text-muted mb-1">SLA Breached</p>
+              <div class="metric">{{ ns.sla }}</div>
+            </div>
+            <div class="stat-icon">
+              <i class="bi bi-exclamation-triangle"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="analytics-card h-100">
+          <div class="d-flex align-items-center justify-content-between">
+            <div>
+              <p class="text-muted mb-1">Critical Priority</p>
+              <div class="metric">{{ ns.critical }}</div>
+            </div>
+            <div class="stat-icon">
+              <i class="bi bi-lightning-charge"></i>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-  {% endfor %}
-</div>
 
-<div class="table-responsive bg-white shadow-sm rounded-3">
-  <table class="table align-middle mb-0">
-    <thead class="table-light">
-      <tr>
-        <th>Complaint</th>
-        <th>Category</th>
-        <th>Priority</th>
-        <th>Assignment</th>
-        <th>Status</th>
-        <th>History</th>
-        <th>Action</th>
-      </tr>
-    </thead>
-    <tbody>
-    {% for c in complaints %}
-      <tr>
-        <td style="min-width: 220px;">
-          <div class="fw-semibold">#{{ c.id }} {{ c.title }}</div>
-          <div class="text-muted small">Submitted by {{ c.user }}</div>
-          <div class="text-muted small">{{ c.created_at or "-" }}</div>
-          {% if c.attachment_filename %}
-            <div class="mt-2">
-              <a href="{{ url_for('view_attachment', filename=c.attachment_filename) }}" class="btn btn-sm btn-outline-primary">View Attachment</a>
-            </div>
-          {% else %}
-            <div class="mt-2 text-muted small">No attachment</div>
-          {% endif %}
-        </td>
-        <td>{{ c.category }}</td>
-        <td><span class="badge bg-secondary">{{ c.priority }}</span></td>
-        <td>
-          <div class="small text-muted">Assigned to</div>
-          <div class="fw-semibold">{{ c.assigned_to or "Unassigned" }}</div>
-          {% if c.resolution_date %}
-            <div class="small text-muted">Resolution date: {{ c.resolution_date }}</div>
-          {% endif %}
-        </td>
-        <td>
-          <span class="badge bg-info">{{ c.status }}</span>
-          {% if c.admin_remarks %}
-            <div class="small text-muted mt-2">Remarks: {{ c.admin_remarks }}</div>
-          {% endif %}
-        </td>
-        <td>
-          <ul class="list-unstyled mb-0 small">
-            {% for history in c.history %}
-              <li>
-                <span class="fw-semibold">{{ history.old_status }} → {{ history.new_status }}</span>
-                <span class="text-muted">({{ history.changed_at.strftime("%d %b %Y %H:%M") }})</span>
-              </li>
-            {% endfor %}
-          </ul>
-        </td>
-        <td style="min-width: 220px;">
-          <form method="post" action="{{ url_for('update_complaint', complaint_id=c.id) }}">
-            <div class="mb-2">
-              <label class="form-label small">Status</label>
-              <select class="form-select form-select-sm" name="status">
-                {% for option in status_options %}
-                  <option value="{{ option }}" {% if option == c.status %}selected{% endif %}>{{ option }}</option>
+    <div class="row g-3 mb-4">
+      <div class="col-lg-6">
+        <div class="chart-card h-100">
+          <h6 class="mb-3">Complaints by Status</h6>
+          <canvas id="statusChart" height="200"></canvas>
+        </div>
+      </div>
+      <div class="col-lg-6">
+        <div class="chart-card h-100">
+          <h6 class="mb-3">Complaints by Priority</h6>
+          <canvas id="priorityChart" height="200"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex align-items-center justify-content-between mb-3" id="complaints">
+      <h5 class="mb-0">Complaints Management</h5>
+      <span class="text-muted small">{{ complaints|length }} total</span>
+    </div>
+
+    <div class="table-card table-responsive">
+      <table class="table align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Complaint</th>
+            <th>Category</th>
+            <th>Priority</th>
+            <th>Assignment</th>
+            <th>Status</th>
+            <th>History</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for c in complaints %}
+          <tr data-status="{{ c.status }}" data-priority="{{ c.priority }}">
+            <td class="complaint-cell">
+              <div class="fw-semibold">#{{ c.id }} {{ c.title }}</div>
+              <div class="text-muted small">Submitted by {{ c.user }}</div>
+              <div class="text-muted small">{{ c.created_at or "-" }}</div>
+              {% if c.attachment_filename %}
+                <div class="mt-2">
+                  <a href="{{ url_for('view_attachment', filename=c.attachment_filename) }}" class="btn btn-sm btn-outline-primary">
+                    View Attachment
+                  </a>
+                </div>
+              {% else %}
+                <div class="mt-2 text-muted small">No attachment</div>
+              {% endif %}
+            </td>
+            <td>
+              <span class="badge badge-category">{{ c.category }}</span>
+            </td>
+            <td>
+              <span class="badge
+                {% if c.priority == 'Critical' %}badge-priority--critical
+                {% elif c.priority == 'High' %}badge-priority--high
+                {% elif c.priority == 'Medium' %}badge-priority--medium
+                {% else %}badge-priority--low{% endif %}">
+                {{ c.priority }}
+              </span>
+            </td>
+            <td>
+              <div class="small text-muted">Assigned to</div>
+              <div class="fw-semibold">{{ c.assigned_to or "Unassigned" }}</div>
+              {% if c.resolution_date %}
+                <div class="small text-muted">Resolution date: {{ c.resolution_date }}</div>
+              {% endif %}
+            </td>
+            <td>
+              <span class="badge
+                {% if c.status in ['Resolved', 'Closed'] %}badge-status--resolved
+                {% elif c.status == 'Pending' %}badge-status--pending
+                {% else %}badge-status--open{% endif %}">
+                {{ c.status }}
+              </span>
+              {% if c.admin_remarks %}
+                <div class="small text-muted mt-2">Remarks: {{ c.admin_remarks }}</div>
+              {% endif %}
+            </td>
+            <td>
+              <ul class="list-unstyled mb-0 small">
+                {% for history in c.history %}
+                  <li>
+                    <span class="fw-semibold">{{ history.old_status }} → {{ history.new_status }}</span>
+                    <span class="text-muted">({{ history.changed_at.strftime("%d %b %Y %H:%M") }})</span>
+                  </li>
                 {% endfor %}
-              </select>
-            </div>
-            <div class="mb-2">
-              <label class="form-label small">Assign to</label>
-              <input class="form-control form-control-sm" name="assigned_to" value="{{ c.assigned_to or '' }}" placeholder="Staff member">
-            </div>
-            <div class="mb-2">
-              <label class="form-label small">Resolution date</label>
-              <input class="form-control form-control-sm" type="date" name="resolution_date" value="{{ c.resolution_date or '' }}">
-            </div>
-            <div class="mb-2">
-              <label class="form-label small">Admin remarks</label>
-              <textarea class="form-control form-control-sm" name="admin_remarks" rows="2">{{ c.admin_remarks or '' }}</textarea>
-            </div>
-            <button class="btn btn-primary btn-sm w-100">Update</button>
-          </form>
-        </td>
-      </tr>
-    {% else %}
-      <tr>
-        <td colspan="7" class="text-center text-muted py-4">No complaints submitted yet.</td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
+              </ul>
+            </td>
+            <td class="action-cell">
+              <form method="post" action="{{ url_for('update_complaint', complaint_id=c.id) }}">
+                <div class="mb-2">
+                  <label class="form-label small">Status</label>
+                  <select class="form-select form-select-sm" name="status">
+                    {% for option in status_options %}
+                      <option value="{{ option }}" {% if option == c.status %}selected{% endif %}>{{ option }}</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="mb-2">
+                  <label class="form-label small">Assign to</label>
+                  <input class="form-control form-control-sm" name="assigned_to" value="{{ c.assigned_to or '' }}" placeholder="Staff member">
+                </div>
+                <div class="mb-2">
+                  <label class="form-label small">Resolution date</label>
+                  <input class="form-control form-control-sm" type="date" name="resolution_date" value="{{ c.resolution_date or '' }}">
+                </div>
+                <div class="mb-2">
+                  <label class="form-label small">Admin remarks</label>
+                  <textarea class="form-control form-control-sm" name="admin_remarks" rows="2">{{ c.admin_remarks or '' }}</textarea>
+                </div>
+                <button class="btn btn-primary btn-sm w-100">Update</button>
+              </form>
+            </td>
+          </tr>
+        {% else %}
+          <tr>
+            <td colspan="7" class="text-center text-muted py-4">No complaints submitted yet.</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  const statusCounts = {{ status_count | tojson }};
+  const priorityCounts = {};
+  document.querySelectorAll('[data-priority]').forEach((row) => {
+    const priority = row.dataset.priority || 'Unknown';
+    priorityCounts[priority] = (priorityCounts[priority] || 0) + 1;
+  });
+
+  const statusCtx = document.getElementById('statusChart');
+  new Chart(statusCtx, {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(statusCounts),
+      datasets: [{
+        data: Object.values(statusCounts),
+        backgroundColor: ['#3b82f6', '#f59e0b', '#22c55e', '#64748b']
+      }]
+    },
+    options: {
+      plugins: { legend: { position: 'bottom' } },
+      cutout: '70%'
+    }
+  });
+
+  const priorityCtx = document.getElementById('priorityChart');
+  new Chart(priorityCtx, {
+    type: 'bar',
+    data: {
+      labels: Object.keys(priorityCounts),
+      datasets: [{
+        data: Object.values(priorityCounts),
+        backgroundColor: ['#ef4444', '#f97316', '#3b82f6', '#10b981']
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false } },
+        y: { beginAtZero: true }
+      }
+    }
+  });
+</script>
 {% endblock %}
