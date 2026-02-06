@@ -84,35 +84,39 @@
         </tr>
       </thead>
       <tbody>
-      {% for c in complaints %}
+      {% for complaint in complaints %}
         <tr>
           <td>
-            <div class="fw-semibold">#{{ c.id }} {{ c.title }}</div>
-            <div class="text-muted small">{{ c.description }}</div>
+            <div class="fw-semibold">#{{ complaint.id }} {{ complaint.title }}</div>
+            <div class="text-muted small">{{ complaint.description }}</div>
           </td>
           <td>
-            <span class="badge badge-category">{{ c.category }}</span>
+            <span class="badge bg-light text-dark">{{ complaint.category or "—" }}</span>
           </td>
           <td>
             <span class="badge
-              {% if c.priority == 'Critical' %}badge-priority--critical
-              {% elif c.priority == 'High' %}badge-priority--high
-              {% elif c.priority == 'Medium' %}badge-priority--medium
-              {% else %}badge-priority--low{% endif %}">
-              {{ c.priority }}
+              {% if complaint.priority == 'Low' %}bg-secondary
+              {% elif complaint.priority == 'Medium' %}bg-info
+              {% elif complaint.priority == 'High' %}bg-warning text-dark
+              {% elif complaint.priority == 'Critical' %}bg-danger
+              {% else %}bg-secondary{% endif %}">
+              {{ complaint.priority or "—" }}
             </span>
           </td>
           <td>
             <span class="badge
-              {% if c.status in ['Resolved', 'Closed'] %}badge-status--resolved
-              {% elif c.status == 'Pending' %}badge-status--pending
-              {% else %}badge-status--open{% endif %}">
-              {{ c.status }}
+              {% if complaint.status == 'Pending' %}bg-secondary
+              {% elif complaint.status == 'Assigned' %}bg-primary
+              {% elif complaint.status == 'In Progress' %}bg-info
+              {% elif complaint.status == 'Resolved' %}bg-success
+              {% elif complaint.status == 'Rejected' %}bg-danger
+              {% else %}bg-secondary{% endif %}">
+              {{ complaint.status or "—" }}
             </span>
           </td>
           <td>
-            {% if c.attachment_filename %}
-              <a href="{{ url_for('view_attachment', filename=c.attachment_filename) }}" class="btn btn-sm btn-outline-primary">
+            {% if complaint.attachment_filename %}
+              <a href="{{ url_for('view_attachment', filename=complaint.attachment_filename) }}" class="btn btn-sm btn-outline-primary">
                 <i class="bi bi-download"></i> Download
               </a>
             {% else %}
@@ -121,7 +125,7 @@
           </td>
           <td>
             <ul class="list-unstyled mb-0 small">
-              {% for history in c.history %}
+              {% for history in complaint.history %}
                 <li>
                   <span class="fw-semibold">{{ history.old_status }} → {{ history.new_status }}</span>
                   <span class="text-muted">({{ history.changed_at.strftime("%d %b %Y %H:%M") }})</span>
@@ -131,8 +135,8 @@
           </td>
           <td>
             <div class="d-flex gap-2">
-              {% if c.attachment_filename %}
-                <a href="{{ url_for('view_attachment', filename=c.attachment_filename) }}" class="btn btn-sm btn-soft">
+              {% if complaint.attachment_filename %}
+                <a href="{{ url_for('view_attachment', filename=complaint.attachment_filename) }}" class="btn btn-sm btn-soft">
                   <i class="bi bi-eye"></i> View
                 </a>
               {% else %}
